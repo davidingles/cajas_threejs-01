@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Visor 3D · Three.js</title>
+  <meta name="description" content="Visor 3D sencillo con Three.js: el modelo gira solo y puedes girarlo, escalarlo y moverlo con el ratón o el dedo." />
+  <meta name="theme-color" content="#0a0d16" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>&#128230;</text></svg>" />
+  <link rel="stylesheet" href="./css/styles.css" />
+
+  <!-- Única librería externa: three.js (módulos ES servidos por CDN) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene" aria-label="Visor 3D interactivo"></canvas>
+
+    <!-- Título y origen del modelo -->
+    <header class="hud hud--top">
+      <h1 class="title">Visor 3D</h1>
+      <p class="source" id="source-label">Cubo de prueba</p>
+    </header>
+
+    <!-- Ayuda de controles: ratón o táctil según el dispositivo -->
+    <aside class="hud hud--hints" aria-label="Controles">
+      <ul class="hints hints--mouse">
+        <li><span class="key">Arrastrar</span> girar</li>
+        <li><span class="key">Rueda</span> escalar (zoom)</li>
+        <li><span class="key">Botón derecho</span> mover</li>
+      </ul>
+      <ul class="hints hints--touch">
+        <li><span class="key">1 dedo</span> girar</li>
+        <li><span class="key">Pellizcar</span> escalar</li>
+        <li><span class="key">2 dedos</span> mover</li>
+      </ul>
+      <p class="hints__drop">Suelta aquí un archivo <b>.glb</b> para verlo</p>
+    </aside>
+
+    <!-- Acciones -->
+    <div class="hud hud--actions">
+      <button id="btn-rotate" class="btn" type="button" aria-pressed="true">Pausar giro</button>
+      <button id="btn-reset" class="btn" type="button">Reiniciar vista</button>
+      <button id="btn-open" class="btn btn--primary" type="button">Abrir .glb</button>
+      <input id="file-input" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden />
+    </div>
+
+    <!-- Estado de carga -->
+    <div class="overlay" id="overlay">
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="overlay__text" id="overlay-text">Cargando visor…</p>
+    </div>
+
+    <!-- Aviso al soltar un archivo encima -->
+    <div class="dropzone" id="dropzone" aria-hidden="true">
+      <span>Suelta el archivo <b>.glb</b> para cargarlo</span>
+    </div>
+
+    <noscript>
+      <div class="overlay"><p class="overlay__text">Este visor necesita JavaScript activado.</p></div>
+    </noscript>
+  </div>
+
+  <script>
+    // Aviso si el CDN de three.js no responde (sin conexión, red bloqueada...).
+    window.__VISOR_BOOT__ = { ok: false };
+    window.setTimeout(function () {
+      if (window.__VISOR_BOOT__.ok) return;
+      var overlay = document.getElementById('overlay');
+      var text = document.getElementById('overlay-text');
+      if (overlay) overlay.classList.add('overlay--error');
+      if (text) {
+        text.textContent = 'No se ha podido cargar three.js desde el CDN. Comprueba tu conexión a internet y recarga la página.';
+      }
+    }, 12000);
+  </script>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
