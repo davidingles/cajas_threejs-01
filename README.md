@@ -3,6 +3,8 @@
 Visor 3D muy sencillo hecho **solo con HTML, CSS y JavaScript**. La única
 librería externa es [three.js](https://threejs.org/), cargada por CDN.
 
+**Ver en vivo:** <https://davidingles.github.io/cajas_threejs-01/>
+
 Muestra la caja de cartón `models/caja_04.glb`, que gira despacio sobre su eje.
 
 > Si borras el modelo o pones `model.url` en `null` dentro de `js/config.js`,
