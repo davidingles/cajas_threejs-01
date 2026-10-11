@@ -5,7 +5,8 @@ librería externa es [three.js](https://threejs.org/), cargada por CDN.
 
 **Ver en vivo:** <https://davidingles.github.io/cajas_threejs-01/>
 
-Muestra la caja de cartón `models/caja_04.glb`, que gira despacio sobre su eje.
+Muestra la caja de cartón `models/caja_02.glb`, plegada y formada con las
+solapas de arriba abiertas, girando despacio sobre su eje.
 
 > Si borras el modelo o pones `model.url` en `null` dentro de `js/config.js`,
 > el visor muestra un cubo de prueba en su lugar.
@@ -47,7 +48,7 @@ o pulsa **Abrir .glb**. Ideal para ir viendo cómo queda.
 
 ```js
 model: {
-  url: './models/caja_04.glb',
+  url: './models/caja_02.glb',
 },
 ```
 
@@ -55,12 +56,38 @@ El visor se adapta solo: centra el modelo, lo apoya en el suelo y ajusta la
 cámara, las luces y la sombra a su tamaño. También admite modelos comprimidos
 con Draco o meshopt.
 
+### Plegar la caja (el `.glb` viene desplegado)
+
+El archivo guarda la caja **desplegada** (una plancha plana) y trae un
+esqueleto con un hueso por panel y por solapa. El visor la **pliega** hasta
+montarla aplicando el bloque `pose` de `js/config.js`: levanta las paredes,
+cierra las solapas del fondo y abre las de arriba.
+
+```js
+pose: {
+  Bone_Raiz: [['x', 90]],          // deja la abertura mirando hacia arriba
+  Panel_Lateral_Izq: [['y', 90]],  // paredes
+  Panel_Lateral_Der: [['y', -90]],
+  Panel_Trasera: [['y', -90]],
+  Solapa_Encolado: [['y', 90]],
+  Solapa_Inf_Frente: [['y', -90]], // fondo (cerrado)
+  /* … las cuatro Solapa_Inf_* … */
+  Solapa_Sup_Frente: [['y', -45]], // arriba (abiertas hacia fuera)
+  /* … las cuatro Solapa_Sup_* … */
+},
+```
+
+Cada entrada lleva el **nombre del hueso** y una lista de giros sobre sus ejes
+locales (`x`, `y`, `z`) en grados, aplicados en orden. Los nombres que no
+existan en el archivo se ignoran, así que puedes arrastrar otro `.glb` sin que
+se rompa nada. Con `pose: null` se ve la plancha tal cual viene en el archivo.
+
 ### Las luces que trae el `.glb`
 
-El archivo de la caja incluye su propio juego de tres luces de estudio
-(`Luz_Clave_Key`, `Luz_Recorte_Rim`, `Luz_Relleno_Fill`). Por defecto el visor
-**las ignora** y usa su propia iluminación, porque así la luz se queda fija
-mientras la caja gira y se aprecia mucho mejor el volumen.
+Algunos archivos incluyen su propio juego de luces de estudio (clave, recorte y
+relleno). Por defecto el visor **las ignora** y usa su propia iluminación,
+porque así la luz se queda fija mientras la caja gira y se aprecia mucho mejor
+el volumen.
 
 Si prefieres la iluminación original de Blender:
 
@@ -94,10 +121,18 @@ para que no se sumen y queme la imagen.
 | --- | --- |
 | `model.url` | Ruta del `.glb` (o `null` para el cubo de prueba). |
 | `model.useEmbeddedLights` | Usar las luces que trae el propio archivo. |
+| `pose` | Giros por hueso para plegar y montar la caja (ver arriba). |
+| `quality.maxPixelRatio` | Densidad de pantalla (nitidez frente a rendimiento). |
+| `quality.shadowMapSize` | Resolución de la sombra (más alto = borde más fino). |
+| `quality.anisotropy` | Filtrado de texturas: `'auto'` usa el máximo del equipo. |
+| `materials.forceDielectric` | Quita el metal de los materiales (cartón, no metal). |
+| `materials.roughnessRange` | Rugosidad mínima y máxima de los materiales. |
+| `materials.envMapIntensity` | Fuerza de los reflejos del entorno sobre el modelo. |
 | `rotation.speed` | Velocidad del giro automático (radianes por segundo). |
 | `rotation.enabled` | Si el modelo gira solo al abrir la página. |
 | `placeholder.size` / `color` | Tamaño y color del cubo de prueba. |
 | `camera.fitPadding` | Margen alrededor del modelo al encuadrarlo. |
+| `camera.direction` | Desde dónde mira la cámara (más altura = más vista superior). |
 | `controls.*` | Sensibilidad de giro, zoom y desplazamiento. |
 | `background.top` / `bottom` | Colores del fondo degradado. |
 | `grid` | Mostrar u ocultar la rejilla del suelo. |

@@ -1,7 +1,7 @@
 # Carpeta de modelos
 
-Aquí van tus archivos **`.glb`**. Ahora mismo contiene `caja_04.glb`, que es el
-modelo que muestra el visor.
+Aquí van tus archivos **`.glb`**. Ahora mismo contiene `caja_02.glb`, la caja de
+cartón que muestra el visor (guardada desplegada y plegada desde `pose`).
 
 1. Copia tu archivo, por ejemplo `caja.glb`, dentro de esta carpeta.
 2. Abre `js/config.js` y pon la ruta:

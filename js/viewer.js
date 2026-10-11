@@ -35,7 +35,8 @@ export class ModelViewer {
     /** @type {THREE.Object3D|null} */
     this.content = null;
 
-    this.clock = new THREE.Clock();
+    this.timer = new THREE.Timer();
+    if (typeof document !== 'undefined') this.timer.connect(document);
     this._loadToken = 0;
 
     this._initRenderer();
@@ -125,6 +126,7 @@ export class ModelViewer {
     this.renderer.setAnimationLoop(null);
     window.removeEventListener('resize', this._resize);
     this._resizeObserver?.disconnect();
+    this.timer.disconnect();
     this.controls.dispose();
     this._draco.dispose();
     if (this.content) this._disposeObject(this.content);
@@ -146,11 +148,19 @@ export class ModelViewer {
       alpha: false,
       powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(this._pixelRatio());
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // PCF con `shadow.radius` da bordes suaves; PCFSoftShadowMap se eliminó
+    // en three reciente y solo generaba un aviso en consola.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+  }
+
+  /** Factor de píxel efectivo (densidad de pantalla acotada por la config). */
+  _pixelRatio() {
+    const max = this.config.quality?.maxPixelRatio ?? 2;
+    return Math.min(window.devicePixelRatio || 1, max);
   }
 
   _initScene() {
@@ -165,6 +175,8 @@ export class ModelViewer {
   }
 
   _initLights() {
+    const shadowSize = this.config.quality?.shadowMapSize ?? 2048;
+
     this.hemiLight = new THREE.HemisphereLight(0xbfd4ff, 0x1c2333, 1.15);
     this.scene.add(this.hemiLight);
 
@@ -172,7 +184,11 @@ export class ModelViewer {
     this.keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
     this.keyLight.position.set(4, 7, 5);
     this.keyLight.castShadow = true;
-    this.keyLight.shadow.mapSize.set(1024, 1024);
+    this.keyLight.shadow.mapSize.set(shadowSize, shadowSize);
+    // Radio alto = borde de sombra suave y difuso, como el de una luz de estudio.
+    this.keyLight.shadow.radius = 4;
+    // Sombra algo translúcida: el cartón no proyecta una mancha negra.
+    this.keyLight.shadow.intensity = 0.82;
     this.keyLight.shadow.bias = -0.0005;
     this.keyLight.shadow.normalBias = 0.02;
     this.scene.add(this.keyLight);
@@ -247,7 +263,7 @@ export class ModelViewer {
       const width = Math.max(1, Math.floor(host.clientWidth || window.innerWidth));
       const height = Math.max(1, Math.floor(host.clientHeight || window.innerHeight));
 
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      this.renderer.setPixelRatio(this._pixelRatio());
       this.renderer.setSize(width, height, false);
 
       this.camera.aspect = width / height;
@@ -309,11 +325,15 @@ export class ModelViewer {
     this._frame();
   }
 
-  /** Activa sombras y ajusta el material de un modelo cargado. */
+  /** Activa sombras y ajusta los materiales de un modelo cargado. */
   _registerModel(object) {
+    this._applyPose(object);
+
     const options = this.config.model ?? {};
+    const materialOptions = this.config.materials ?? {};
     const castShadow = options.castShadow !== false;
     const receiveShadow = options.receiveShadow !== false;
+    const anisotropy = this._resolveAnisotropy();
 
     const embeddedLights = [];
 
@@ -328,10 +348,7 @@ export class ModelViewer {
 
       const materials = Array.isArray(node.material) ? node.material : [node.material];
       for (const material of materials) {
-        if (material && 'envMapIntensity' in material) {
-          material.envMapIntensity = 1;
-          material.needsUpdate = true;
-        }
+        if (material) this._tuneMaterial(material, materialOptions, anisotropy);
       }
     });
 
@@ -345,6 +362,84 @@ export class ModelViewer {
     }
 
     this._applyLightingProfile(useEmbedded);
+  }
+
+  /**
+   * Aplica el plegado del modelo (config `pose`).
+   *
+   * Algunos .glb (como el de la caja) guardan la pieza desplegada y traen un
+   * esqueleto con un hueso por panel y por solapa. Aquí se gira cada hueso
+   * para formar la figura: se levantan las paredes, se cierran unas solapas y
+   * se dejan otras abiertas. Los huesos que no existan se ignoran, así que un
+   * modelo distinto (arrastrado a la página) no se rompe.
+   * @param {THREE.Object3D} object
+   */
+  _applyPose(object) {
+    const pose = this.config.pose;
+    if (!pose) return;
+
+    const bones = new Map();
+    object.traverse((node) => {
+      if (node.isBone) bones.set(node.name, node);
+    });
+
+    for (const [name, steps] of Object.entries(pose)) {
+      const bone = bones.get(name);
+      if (!bone) continue;
+
+      for (const [axis, degrees] of steps) {
+        const radians = THREE.MathUtils.degToRad(degrees);
+        if (axis === 'x') bone.rotateX(radians);
+        else if (axis === 'y') bone.rotateY(radians);
+        else if (axis === 'z') bone.rotateZ(radians);
+      }
+    }
+  }
+
+  /**
+   * Ajusta un material PBR para que se vea realista.
+   *
+   * Las texturas se filtran en ángulo con el máximo anisotrópico del equipo
+   * (si no, se ven borrosas cuando la caja gira) y, en los materiales que no
+   * traen mapa de metal ni de rugosidad, se corrigen los valores para que el
+   * cartón no brille como el plástico o el metal.
+   * @param {THREE.Material} material
+   * @param {object} options Ajustes de `config.materials`.
+   * @param {number} anisotropy
+   */
+  _tuneMaterial(material, options, anisotropy) {
+    for (const value of Object.values(material)) {
+      if (value && value.isTexture) {
+        value.anisotropy = anisotropy;
+        value.needsUpdate = true;
+      }
+    }
+
+    if ('envMapIntensity' in material) {
+      material.envMapIntensity = options.envMapIntensity ?? 1;
+    }
+
+    if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+      // El cartón es dieléctrico: sin metal, y mate. Solo se toca si el
+      // material no trae un mapa propio, para no pisar la intención del autor.
+      if (options.forceDielectric !== false && !material.metalnessMap) {
+        material.metalness = 0;
+      }
+
+      const range = options.roughnessRange;
+      if (Array.isArray(range) && range.length === 2 && !material.roughnessMap) {
+        material.roughness = THREE.MathUtils.clamp(material.roughness, range[0], range[1]);
+      }
+    }
+
+    material.needsUpdate = true;
+  }
+
+  /** Anisotropía de filtrado: 'auto' usa el máximo del equipo. */
+  _resolveAnisotropy() {
+    const value = this.config.quality?.anisotropy ?? 'auto';
+    if (value === 'auto') return this.renderer.capabilities.getMaxAnisotropy();
+    return Number(value) || 1;
   }
 
   /**
@@ -383,13 +478,19 @@ export class ModelViewer {
     const size = box.getSize(new THREE.Vector3());
     const radius = Math.max(size.x, size.y, size.z) * 0.5 || 1;
 
+    // El encuadre usa la esfera que envuelve el modelo, no solo su medida
+    // mayor: así también entran las esquinas de una caja.
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const fitRadius = sphere.radius || radius;
+
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
     const padding = this.config.camera?.fitPadding ?? 1.55;
-    const distance = (radius / Math.sin(fov / 2)) * padding;
+    const distance = (fitRadius / Math.sin(fov / 2)) * padding;
 
     this.controls.target.set(0, size.y / 2, 0);
 
-    const direction = new THREE.Vector3(0.68, 0.46, 1).normalize();
+    const dir = this.config.camera?.direction ?? [0.68, 0.46, 1];
+    const direction = new THREE.Vector3(dir[0], dir[1], dir[2]).normalize();
     this.camera.position.copy(this.controls.target).addScaledVector(direction, distance);
 
     this.camera.near = Math.max(radius / 100, 0.01);
@@ -471,9 +572,11 @@ export class ModelViewer {
 
   /* ------------------------------------------------------------- bucle --- */
 
-  _tick() {
-    // Limitado para que volver a la pestaña no dé un salto brusco.
-    const delta = Math.min(this.clock.getDelta(), 0.1);
+  _tick(time) {
+    // El Timer (con Page Visibility) evita el salto brusco al volver a la
+    // pestaña; el acotado extra es una red de seguridad.
+    this.timer.update(time);
+    const delta = Math.min(this.timer.getDelta(), 0.1);
 
     if (this.autoRotate && this.content) {
       this.pivot.rotation.y += (this.config.rotation?.speed ?? 0.4) * delta;
