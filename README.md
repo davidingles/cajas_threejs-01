@@ -20,6 +20,19 @@ solapas de arriba abiertas, girando despacio sobre su eje.
 | Mover | Botón derecho + arrastrar | Dos dedos arrastrando |
 | Pausar el giro | Botón «Pausar giro» o tecla `Espacio` | Botón |
 | Volver a la vista inicial | Botón «Reiniciar vista» o tecla `R` | Botón |
+| Abrir o cerrar las solapas de arriba | Panel «Solapas de arriba» | Igual |
+
+## Abrir y cerrar la caja
+
+El panel **«Solapas de arriba»** (abajo a la izquierda) tiene un control por
+cada solapa de la tapa:
+
+- **Deslizador**: de `0 %` (cerrada) a `100 %` (abierta hacia fuera).
+- **Valor a mano**: escribe el número y pulsa `Intro` (o sal del campo).
+- **Reiniciar solapas**: devuelve las cuatro a su apertura inicial (100 %).
+
+Las solapas y sus huesos se configuran en `js/config.js` (bloque `flaps`); el
+panel se crea solo con lo que encuentre ahí.
 
 ## Ver la página en local
 
@@ -60,27 +73,40 @@ con Draco o meshopt.
 
 El archivo guarda la caja **desplegada** (una plancha plana) y trae un
 esqueleto con un hueso por panel y por solapa. El visor la **pliega** hasta
-montarla aplicando el bloque `pose` de `js/config.js`: levanta las paredes,
-cierra las solapas del fondo y abre las de arriba.
+montarla, con la cara impresa hacia fuera, aplicando el bloque `pose` de
+`js/config.js`: levanta las paredes y cierra el fondo.
 
 ```js
 pose: {
-  Bone_Raiz: [['x', 90]],          // deja la abertura mirando hacia arriba
-  Panel_Lateral_Izq: [['y', 90]],  // paredes
-  Panel_Lateral_Der: [['y', -90]],
-  Panel_Trasera: [['y', -90]],
-  Solapa_Encolado: [['y', 90]],
-  Solapa_Inf_Frente: [['y', -90]], // fondo (cerrado)
+  Bone_Raiz: [['x', 90]],           // deja la abertura mirando hacia arriba
+  Panel_Lateral_Izq: [['y', -90]],  // paredes
+  Panel_Lateral_Der: [['y', 90]],
+  Panel_Trasera: [['y', 90]],
+  Solapa_Encolado: [['y', -90]],
+  Solapa_Inf_Frente: [['y', 90]],   // fondo (cerrado)
   /* … las cuatro Solapa_Inf_* … */
-  Solapa_Sup_Frente: [['y', -45]], // arriba (abiertas hacia fuera)
-  /* … las cuatro Solapa_Sup_* … */
+},
+
+flaps: {
+  axis: 'y',
+  closed: -90,   // giro del hueso con la solapa cerrada
+  open: 45,      // giro con la solapa abierta hacia fuera
+  initial: 100,  // apertura al cargar, en %
+  bones: [
+    { id: 'frente', label: 'Frente', bone: 'Solapa_Sup_Frente' },
+    /* … Trasera, Lateral izq. y Lateral der. … */
+  ],
 },
 ```
 
-Cada entrada lleva el **nombre del hueso** y una lista de giros sobre sus ejes
-locales (`x`, `y`, `z`) en grados, aplicados en orden. Los nombres que no
-existan en el archivo se ignoran, así que puedes arrastrar otro `.glb` sin que
-se rompa nada. Con `pose: null` se ve la plancha tal cual viene en el archivo.
+Cada entrada de `pose` lleva el **nombre del hueso** y una lista de giros sobre
+sus ejes locales (`x`, `y`, `z`) en grados, aplicados en orden. Los nombres que
+no existan en el archivo se ignoran, así que puedes arrastrar otro `.glb` sin
+que se rompa nada. Con `pose: null` se ve la plancha tal cual viene.
+
+Las **solapas de arriba** no van en `pose`: las controla el usuario con los
+sliders del panel (ver más abajo), usando `closed` y `open` para saber cuánto
+gira el hueso en cada extremo.
 
 ### Las luces que trae el `.glb`
 
@@ -122,6 +148,9 @@ para que no se sumen y queme la imagen.
 | `model.url` | Ruta del `.glb` (o `null` para el cubo de prueba). |
 | `model.useEmbeddedLights` | Usar las luces que trae el propio archivo. |
 | `pose` | Giros por hueso para plegar y montar la caja (ver arriba). |
+| `flaps.bones` | Solapas de la tapa y el hueso de cada una. |
+| `flaps.closed` / `open` | Giro del hueso cerrada y abierta del todo (grados). |
+| `flaps.initial` | Apertura al cargar (%). |
 | `quality.maxPixelRatio` | Densidad de pantalla (nitidez frente a rendimiento). |
 | `quality.shadowMapSize` | Resolución de la sombra (más alto = borde más fino). |
 | `quality.anisotropy` | Filtrado de texturas: `'auto'` usa el máximo del equipo. |

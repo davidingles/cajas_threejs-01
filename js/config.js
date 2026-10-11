@@ -60,8 +60,8 @@ export const CONFIG = {
    *
    * El .glb guarda la caja desplegada (una plancha plana) y trae un esqueleto
    * con un hueso por panel y por solapa. Aquí se gira cada hueso hasta montar
-   * la caja: los paneles levantan las paredes, las solapas de abajo se cierran
-   * (el fondo) y las de arriba se quedan abiertas.
+   * la caja con la cara impresa hacia fuera: los paneles levantan las paredes
+   * y las solapas de abajo cierran el fondo.
    *
    * Cada hueso admite giros sobre sus ejes locales (`x`, `y`, `z`) en grados,
    * aplicados en orden. Los nombres que no existan en el archivo se ignoran.
@@ -71,23 +71,44 @@ export const CONFIG = {
     // Deja la abertura (las solapas de arriba) mirando hacia arriba.
     Bone_Raiz: [['x', 90]],
 
-    // Paredes: cada panel gira sobre la arista que comparte con la anterior.
-    Panel_Lateral_Izq: [['y', 90]],
-    Panel_Lateral_Der: [['y', -90]],
-    Panel_Trasera: [['y', -90]],
-    Solapa_Encolado: [['y', 90]],
+    // Paredes: cada panel gira sobre la arista que comparte con el anterior.
+    Panel_Lateral_Izq: [['y', -90]],
+    Panel_Lateral_Der: [['y', 90]],
+    Panel_Trasera: [['y', 90]],
+    Solapa_Encolado: [['y', -90]],
 
     // Fondo: las cuatro solapas de abajo cerradas.
-    Solapa_Inf_Frente: [['y', -90]],
-    Solapa_Inf_Trasera: [['y', -90]],
-    Solapa_Inf_Lat_Izq: [['y', -90]],
-    Solapa_Inf_Lat_Der: [['y', -90]],
+    Solapa_Inf_Frente: [['y', 90]],
+    Solapa_Inf_Trasera: [['y', 90]],
+    Solapa_Inf_Lat_Izq: [['y', 90]],
+    Solapa_Inf_Lat_Der: [['y', 90]],
 
-    // Arriba: las cuatro solapas abiertas hacia fuera.
-    Solapa_Sup_Frente: [['y', -45]],
-    Solapa_Sup_Trasera: [['y', -45]],
-    Solapa_Sup_Lat_Izq: [['y', -45]],
-    Solapa_Sup_Lat_Der: [['y', -45]],
+    // Las solapas de arriba (Solapa_Sup_*) las controla el usuario: ver `flaps`.
+  },
+
+  /**
+   * Solapas de arriba: las que el usuario abre y cierra.
+   *
+   * Cada entrada indica su hueso y los grados de giro (sobre el eje local
+   * `axis`) que corresponden a cerrada y a abierta. Los controles van de 0 %
+   * (cerrada) a 100 % (abierta) y también admiten un valor escrito a mano.
+   */
+  flaps: {
+    /** Eje local del hueso sobre el que se gira la solapa. */
+    axis: 'y',
+    /** Grados del hueso con la solapa cerrada (tapando la abertura). */
+    closed: -90,
+    /** Grados con la solapa abierta del todo (hacia fuera). */
+    open: 45,
+    /** Apertura al cargar, en % (0 = cerrada, 100 = abierta). */
+    initial: 100,
+    /** Las cuatro solapas y el hueso de cada una. */
+    bones: [
+      { id: 'frente', label: 'Frente', bone: 'Solapa_Sup_Frente' },
+      { id: 'trasera', label: 'Trasera', bone: 'Solapa_Sup_Trasera' },
+      { id: 'izquierda', label: 'Lateral izq.', bone: 'Solapa_Sup_Lat_Izq' },
+      { id: 'derecha', label: 'Lateral der.', bone: 'Solapa_Sup_Lat_Der' },
+    ],
   },
 
   /** Giro suave y automático sobre su propio eje vertical. */

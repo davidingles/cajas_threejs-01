@@ -52,6 +52,13 @@
       <input id="file-input" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden />
     </div>
 
+    <!-- Solapas de arriba: abrir y cerrar la caja -->
+    <section class="hud hud--flaps" id="flaps-panel" aria-label="Solapas de arriba" hidden>
+      <h2 class="panel__title">Solapas de arriba</h2>
+      <ul class="flaps" id="flaps-list"></ul>
+      <button id="btn-flaps-reset" class="btn btn--small" type="button">Reiniciar solapas</button>
+    </section>
+
     <!-- Estado de carga -->
     <div class="overlay" id="overlay">
       <div class="spinner" aria-hidden="true"></div>

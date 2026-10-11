@@ -369,31 +369,84 @@ export class ModelViewer {
    *
    * Algunos .glb (como el de la caja) guardan la pieza desplegada y traen un
    * esqueleto con un hueso por panel y por solapa. Aquí se gira cada hueso
-   * para formar la figura: se levantan las paredes, se cierran unas solapas y
-   * se dejan otras abiertas. Los huesos que no existan se ignoran, así que un
+   * hasta montar la figura. Los huesos que no existan se ignoran, así que un
    * modelo distinto (arrastrado a la página) no se rompe.
    * @param {THREE.Object3D} object
    */
   _applyPose(object) {
-    const pose = this.config.pose;
-    if (!pose) return;
-
     const bones = new Map();
     object.traverse((node) => {
       if (node.isBone) bones.set(node.name, node);
     });
 
-    for (const [name, steps] of Object.entries(pose)) {
-      const bone = bones.get(name);
-      if (!bone) continue;
+    // Se guarda la orientación original de cada hueso: las solapas se vuelven
+    // a colocar desde los controles sin que los giros se acumulen.
+    this._boneRest = new Map();
+    for (const [name, bone] of bones) this._boneRest.set(name, bone.quaternion.clone());
+    this._bones = bones;
 
-      for (const [axis, degrees] of steps) {
-        const radians = THREE.MathUtils.degToRad(degrees);
-        if (axis === 'x') bone.rotateX(radians);
-        else if (axis === 'y') bone.rotateY(radians);
-        else if (axis === 'z') bone.rotateZ(radians);
-      }
+    for (const [name, steps] of Object.entries(this.config.pose ?? {})) {
+      const bone = bones.get(name);
+      if (bone) this._rotateBone(bone, steps);
     }
+
+    this._initFlaps();
+  }
+
+  /**
+   * Gira un hueso sobre sus propios ejes, en orden.
+   * @param {THREE.Bone} bone
+   * @param {Array<[string, number]>} steps Pares [eje, grados] (`x`, `y` o `z`).
+   */
+  _rotateBone(bone, steps) {
+    for (const [axis, degrees] of steps) {
+      const radians = THREE.MathUtils.degToRad(degrees);
+      if (axis === 'x') bone.rotateX(radians);
+      else if (axis === 'z') bone.rotateZ(radians);
+      else bone.rotateY(radians);
+    }
+  }
+
+  /** Prepara las solapas que se abren y cierran desde la interfaz. */
+  _initFlaps() {
+    const config = this.config.flaps;
+    this.flaps = [];
+    if (!config || !this._bones) return;
+
+    for (const item of config.bones ?? []) {
+      const bone = this._bones.get(item.bone);
+      if (bone) this.flaps.push({ id: item.id, label: item.label, bone });
+    }
+
+    this.resetFlaps();
+  }
+
+  /**
+   * Abre o cierra una solapa de arriba.
+   * @param {string} id Identificador de la solapa (ver `config.flaps.bones`).
+   * @param {number} value Apertura en % (0 = cerrada, 100 = abierta).
+   * @returns {number|undefined} La apertura aplicada, ya acotada.
+   */
+  setFlapAperture(id, value) {
+    const flap = this.flaps?.find((item) => item.id === id);
+    if (!flap) return undefined;
+
+    const config = this.config.flaps;
+    const percent = THREE.MathUtils.clamp(Number(value) || 0, 0, 100);
+    const degrees = config.closed + (config.open - config.closed) * (percent / 100);
+
+    const rest = this._boneRest.get(flap.bone.name);
+    if (rest) flap.bone.quaternion.copy(rest);
+    this._rotateBone(flap.bone, [[config.axis ?? 'y', degrees]]);
+
+    flap.aperture = percent;
+    return percent;
+  }
+
+  /** Devuelve todas las solapas a su apertura inicial. */
+  resetFlaps() {
+    const initial = this.config.flaps?.initial ?? 100;
+    for (const flap of this.flaps ?? []) this.setFlapAperture(flap.id, initial);
   }
 
   /**
