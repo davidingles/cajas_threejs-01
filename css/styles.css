@@ -497,3 +497,22 @@ body {
     gap: 7px;
   }
 }
+
+/* Entrada por clave: la página comienza sin modelo ni controles. */
+[hidden] { display: none !important; }
+html:not([data-visor-state="ready"]) .hud,
+html:not([data-visor-state="ready"]) #scene { visibility: hidden; }
+.client-gate { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 24px; overflow-y: auto; background: radial-gradient(ellipse at 50% 30%, #1b2948 0%, #0a0d16 72%); }
+.client-card { width: min(100%, 420px); padding: 32px; border: 1px solid var(--border); border-radius: 20px; background: rgba(17,23,39,.9); box-shadow: var(--shadow); }
+.client-eyebrow { color: #8bb3ff; font-size: .72rem; font-weight: 700; letter-spacing: .18em; }
+.client-card h1 { font-size: clamp(1.8rem, 6vw, 2.4rem); line-height: 1.15; margin: 16px 0; letter-spacing: -.04em; }
+.client-card p { color: var(--muted); line-height: 1.6; font-size: .9rem; }
+.client-card label { display: block; margin: 24px 0 8px; font-size: .85rem; font-weight: 600; }
+.client-card input { width: 100%; padding: 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: #0c1220; color: var(--text); font: inherit; }
+.client-card input:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.client-card .client-help { font-size: .75rem; margin: 10px 0 22px; }
+.client-card button { width: 100%; padding: 14px; font-size: .95rem; }
+.client-card button:disabled { opacity: .65; cursor: wait; }
+.client-card #client-status { margin-bottom: 0; min-height: 1em; font-size: .8rem; }
+html[data-visor-state="error"] #client-status { color: #ffb0a8; }
+@media (max-width: 420px) { .client-card { padding: 24px; } .client-gate { padding: 16px; } }

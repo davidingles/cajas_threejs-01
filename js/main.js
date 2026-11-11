@@ -1,133 +1,113 @@
 import { CONFIG } from './config.js';
-import { ModelViewer } from './viewer.js';
-
-/* -------------------------------------------------------------- elementos --- */
-
+import { modelFilename } from './model-key.js';
+const root = document.documentElement;
 const canvas = document.getElementById('scene');
+const gate = document.getElementById('client-gate');
+const form = document.getElementById('client-form');
+const input = document.getElementById('client-key');
+const submit = document.getElementById('client-submit');
+const status = document.getElementById('client-status');
 const overlay = document.getElementById('overlay');
 const overlayText = document.getElementById('overlay-text');
 const sourceLabel = document.getElementById('source-label');
-const dropzone = document.getElementById('dropzone');
 const btnRotate = document.getElementById('btn-rotate');
 const btnReset = document.getElementById('btn-reset');
-const btnOpen = document.getElementById('btn-open');
-const fileInput = document.getElementById('file-input');
 const flapsPanel = document.getElementById('flaps-panel');
 const flapsList = document.getElementById('flaps-list');
 const btnFlapsReset = document.getElementById('btn-flaps-reset');
-
-const root = document.documentElement;
-const ACCEPTED = /\.(glb|gltf)$/i;
-
-/* ------------------------------------------------------------ visor --- */
-
 let viewer = null;
+let busy = false;
 
-try {
-  viewer = new ModelViewer(canvas, CONFIG);
-  window.__VISOR_BOOT__.ok = true;
-} catch (error) {
-  showFatal();
-  throw error;
-}
-
-/* --------------------------------------------------- errores en pantalla --- */
-
-// Se deja constancia del error en el propio <html>, útil para diagnosticar
-// sin abrir la consola del navegador.
-window.addEventListener('error', (event) => {
-  root.dataset.visorError = String(event.message || 'error').slice(0, 300);
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  const reason = event.reason;
-  root.dataset.visorError = String((reason && reason.message) || reason || 'promesa rechazada').slice(0, 300);
-});
-
-/* ---------------------------------------------------------- interfaz --- */
-
-function showOverlay(message) {
-  if (message) overlayText.textContent = message;
-  overlay.classList.remove('overlay--hidden');
-  overlay.classList.remove('overlay--error');
-}
-
-function hideOverlay() {
+function returnToGate(message = '') {
+  root.dataset.visorState = message ? 'error' : 'idle';
+  root.dataset.visorReady = 'false';
   overlay.classList.add('overlay--hidden');
+  gate.hidden = false;
+  status.textContent = message;
+  input.disabled = submit.disabled = false;
+  input.focus();
 }
-
-function showError(message) {
-  overlayText.textContent = message;
-  overlay.classList.add('overlay--error');
-  overlay.classList.remove('overlay--hidden');
-}
-
-function showFatal() {
-  overlayText.textContent =
-    'No se ha podido iniciar el visor 3D. Tu navegador o tu tarjeta gráfica no soportan WebGL.';
-  overlay.classList.add('overlay--error');
-  overlay.classList.remove('overlay--hidden');
-}
-
 function syncRotateButton() {
-  const active = viewer.autoRotate;
+  const active = viewer?.autoRotate;
   btnRotate.textContent = active ? 'Pausar giro' : 'Reanudar giro';
-  btnRotate.setAttribute('aria-pressed', String(active));
+  btnRotate.setAttribute('aria-pressed', String(Boolean(active)));
+}
+async function getViewer() {
+  if (viewer) return viewer;
+  // No Three.js, WebGL context or model is loaded before a key is submitted.
+  let timer;
+  try {
+    const module = await Promise.race([
+      import('./viewer.js'),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Comprueba tu conexión e inténtalo de nuevo.')), 20000); })
+    ]);
+    viewer = new module.ModelViewer(canvas, CONFIG);
+  } finally { clearTimeout(timer); }
+  viewer.onStatus = (state, detail = {}) => {
+    if (state === 'loading') {
+      root.dataset.visorState = 'loading';
+      overlayText.textContent = 'Cargando tu caja…';
+      overlay.classList.remove('overlay--hidden');
+    } else if (state === 'ready') {
+      root.dataset.visorState = 'ready';
+      root.dataset.visorReady = 'true';
+      sourceLabel.textContent = viewer.contentLabel;
+      buildFlapsUI();
+      syncRotateButton();
+      gate.hidden = true;
+      overlay.classList.add('overlay--hidden');
+    } else if (state === 'error') {
+      const missing = detail.error?.response?.status === 404;
+      returnToGate(missing ? 'No encontramos una caja con esa clave. Comprueba el nombre y las mayúsculas. Si acaba de publicarse, espera unos minutos.' : 'No se ha podido cargar la caja. Comprueba la clave y tu conexión, e inténtalo de nuevo.');
+    }
+  };
+  return viewer;
 }
 
-viewer.onStatus = (state, detail = {}) => {
-  if (state === 'loading') {
-    root.dataset.visorState = 'loading';
-    showOverlay(`Cargando ${detail.label || 'modelo'}…`);
-    return;
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (busy) return;
+  let filename;
+  try { filename = modelFilename(input.value); }
+  catch (error) { returnToGate(error.message); return; }
+  busy = true;
+  input.disabled = submit.disabled = true;
+  status.textContent = 'Preparando tu caja…';
+  try {
+    const current = await getViewer();
+    await current.loadModel('./modelos/' + encodeURIComponent(filename) + '?v=' + Date.now(), filename);
+  } catch (error) {
+    returnToGate('No se ha podido iniciar el visor. Comprueba tu conexión y que tu navegador admita WebGL.');
+  } finally {
+    busy = false;
+    input.disabled = submit.disabled = false;
   }
-
-  if (state === 'ready') {
-    root.dataset.visorState = 'ready';
-    root.dataset.visorReady = 'true';
-    sourceLabel.textContent = viewer.contentLabel || 'Modelo';
-    buildFlapsUI();
-    hideOverlay();
-    return;
-  }
-
-  if (state === 'error') {
-    root.dataset.visorState = 'error';
-    showError(`No se ha podido cargar «${detail.label}». Comprueba que sea un .glb válido.`);
-  }
-};
-
-/* ------------------------------------------------------------ carga --- */
-
-/**
- * Carga un archivo local elegido con el botón o arrastrado a la página.
- * @param {File} file
- */
-async function loadFile(file) {
-  if (!ACCEPTED.test(file.name)) {
-    showError('Formato no soportado. Usa un archivo .glb (o .gltf de un solo archivo).');
-    window.setTimeout(() => {
-      if (root.dataset.visorState === 'ready') hideOverlay();
-    }, 3500);
-    return;
-  }
-
-  await viewer.loadFromFile(file);
-}
-
-async function start() {
-  syncRotateButton();
-
-  if (CONFIG.model.url) {
-    await viewer.loadModel(CONFIG.model.url);
-  } else {
-    viewer.showPlaceholder();
-  }
-}
-
-start();
-
-/* -------------------------------------------------- solapas de arriba --- */
+});
+document.getElementById('btn-change').addEventListener('click', () => {
+  if (busy) return;
+  viewer?.dispose();
+  viewer = null;
+  input.value = '';
+  returnToGate();
+});
+btnRotate.addEventListener('click', () => { viewer?.toggleAutoRotate(); syncRotateButton(); });
+btnReset.addEventListener('click', () => viewer?.resetView());
+window.addEventListener('keydown', event => {
+  if (root.dataset.visorState !== 'ready' || event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) return;
+  if (event.code === 'Space') { event.preventDefault(); viewer?.toggleAutoRotate(); syncRotateButton(); }
+  if (event.key.toLowerCase() === 'r') viewer?.resetView();
+});
+canvas.addEventListener('webglcontextlost', event => {
+  event.preventDefault();
+  viewer?.dispose(); viewer = null;
+  returnToGate('Se ha perdido la conexión con la tarjeta gráfica. Vuelve a introducir la clave.');
+});
+// Prevent a dropped file from replacing the customer page.
+for (const type of ['dragover', 'drop']) window.addEventListener(type, event => event.preventDefault());
+try {
+  const initial = new URLSearchParams(window.location.search).get('caja') || new URLSearchParams(window.location.search).get('clave') || new URLSearchParams(window.location.search).get('key');
+  if (initial) input.value = initial;
+} catch (_) {}
 
 /** Controles de cada solapa (slider y número), por identificador. */
 const flapControls = new Map();
@@ -229,86 +209,3 @@ btnFlapsReset?.addEventListener('click', () => {
   syncFlapsUI();
 });
 
-/* ----------------------------------------------------------- botones --- */
-
-btnRotate.addEventListener('click', () => {
-  viewer.toggleAutoRotate();
-  syncRotateButton();
-});
-
-btnReset.addEventListener('click', () => {
-  viewer.resetView();
-});
-
-btnOpen.addEventListener('click', () => {
-  fileInput.click();
-});
-
-fileInput.addEventListener('change', () => {
-  const file = fileInput.files && fileInput.files[0];
-  // Se limpia siempre para poder volver a elegir el mismo archivo.
-  fileInput.value = '';
-  if (file) loadFile(file);
-});
-
-/* -------------------------------------------------- arrastrar y soltar --- */
-
-let dragDepth = 0;
-
-function isFileDrag(event) {
-  const types = event.dataTransfer && event.dataTransfer.types;
-  return Boolean(types) && Array.prototype.includes.call(types, 'Files');
-}
-
-window.addEventListener('dragenter', (event) => {
-  if (!isFileDrag(event)) return;
-  event.preventDefault();
-  dragDepth += 1;
-  dropzone.classList.add('dropzone--active');
-});
-
-window.addEventListener('dragover', (event) => {
-  if (!isFileDrag(event)) return;
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-});
-
-window.addEventListener('dragleave', (event) => {
-  if (!isFileDrag(event)) return;
-  dragDepth = Math.max(0, dragDepth - 1);
-  if (dragDepth === 0) dropzone.classList.remove('dropzone--active');
-});
-
-window.addEventListener('drop', (event) => {
-  if (!isFileDrag(event)) return;
-  event.preventDefault();
-  dragDepth = 0;
-  dropzone.classList.remove('dropzone--active');
-
-  const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
-  if (file) loadFile(file);
-});
-
-/* ---------------------------------------------------------- teclado --- */
-
-window.addEventListener('keydown', (event) => {
-  if (event.target instanceof HTMLInputElement) return;
-
-  if (event.code === 'Space') {
-    event.preventDefault();
-    viewer.toggleAutoRotate();
-    syncRotateButton();
-    return;
-  }
-
-  if (event.key === 'r' || event.key === 'R') {
-    viewer.resetView();
-  }
-});
-
-/* ------------------------------------------------------ WebGL perdido --- */
-
-canvas.addEventListener('webglcontextlost', (event) => {
-  event.preventDefault();
-  showError('Se ha perdido el contexto WebGL. Recarga la página para volver a empezar.');
-});

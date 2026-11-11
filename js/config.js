@@ -4,17 +4,9 @@
  * Cambia aquí los valores y recarga la página: no hace falta tocar nada más.
  */
 export const CONFIG = {
-  /**
-   * Modelo a mostrar.
-   *
-   * Con `url` en null se muestra el cubo de prueba. Cambia la ruta cuando
-   * quieras otro archivo; por ejemplo `./models/otra_caja.glb`.
-   *
-   * También puedes arrastrar un .glb sobre la página o usar el botón
-   * «Abrir .glb» para previsualizarlo sin tocar el código.
-   */
+  /** Los modelos se cargan únicamente al introducir su clave. */
   model: {
-    url: './models/caja_02.glb',
+    url: null,
     castShadow: true,
     receiveShadow: true,
 
