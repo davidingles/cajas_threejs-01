@@ -173,6 +173,8 @@ export class ModelViewer {
     this.scene.background = createGradientTexture(this.config.background);
   }
 
+  get hasAnimations() { return Boolean(this.animClips && this.animClips.length > 0); }
+
   _setupAnimations(scene, animations) {
     if (this.mixer) {
       this.mixer.stopAllAction();

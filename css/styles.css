@@ -520,7 +520,7 @@ html[data-visor-state="error"] #client-status { color: #ffb0a8; }
 /* Barra de control de animación en el canvas */
 .hud--animation {
   position: absolute;
-  bottom: 24px;
+  bottom: calc(var(--pad) + 56px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
@@ -589,7 +589,7 @@ html[data-visor-state="error"] #client-status { color: #ffb0a8; }
 
 @media (max-width: 600px) {
   .hud--animation {
-    bottom: 84px;
+    bottom: calc(var(--pad) + 96px);
     width: calc(100vw - 28px);
     padding: 6px 12px;
     gap: 8px;
