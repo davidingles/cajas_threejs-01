@@ -15,6 +15,12 @@ const btnReset = document.getElementById('btn-reset');
 const flapsPanel = document.getElementById('flaps-panel');
 const flapsList = document.getElementById('flaps-list');
 const btnFlapsReset = document.getElementById('btn-flaps-reset');
+const animPanel = document.getElementById('anim-panel');
+const animSlider = document.getElementById('anim-slider');
+const btnAnimPlay = document.getElementById('btn-anim-play');
+const animPlayText = document.getElementById('anim-play-text');
+const animIcon = document.getElementById('anim-icon');
+const animValLabel = document.getElementById('anim-val-label');
 let viewer = null;
 let busy = false;
 
@@ -23,6 +29,7 @@ function returnToGate(message = '') {
   root.dataset.visorReady = 'false';
   overlay.classList.add('overlay--hidden');
   gate.hidden = false;
+  if (animPanel) animPanel.hidden = true;
   status.textContent = message;
   input.disabled = submit.disabled = false;
   input.focus();
@@ -42,6 +49,12 @@ async function getViewer() {
       new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Comprueba tu conexión e inténtalo de nuevo.')), 20000); })
     ]);
     viewer = new module.ModelViewer(canvas, CONFIG);
+    viewer.onAnimationUpdate = (progress, isPlaying) => {
+      const pct = Math.round(progress * 100);
+      if (animSlider && document.activeElement !== animSlider) animSlider.value = pct;
+      if (animValLabel) animValLabel.textContent = pct + '%';
+      syncAnimButton(isPlaying);
+    };
   } finally { clearTimeout(timer); }
   viewer.onStatus = (state, detail = {}) => {
     if (state === 'loading') {
@@ -56,6 +69,12 @@ async function getViewer() {
       syncRotateButton();
       gate.hidden = true;
       overlay.classList.add('overlay--hidden');
+      if (animPanel) {
+        animPanel.hidden = !detail.hasAnimations;
+        animSlider.value = 100;
+        animValLabel.textContent = '100%';
+        syncAnimButton(false);
+      }
     } else if (state === 'error') {
       const missing = detail.error?.response?.status === 404;
       returnToGate(missing ? 'No encontramos una caja con esa clave. Comprueba el nombre y las mayúsculas. Si acaba de publicarse, espera unos minutos.' : 'No se ha podido cargar la caja. Comprueba la clave y tu conexión, e inténtalo de nuevo.');
@@ -83,6 +102,34 @@ form.addEventListener('submit', async event => {
     input.disabled = submit.disabled = false;
   }
 });
+
+function syncAnimButton(isPlaying) {
+  if (!btnAnimPlay) return;
+  if (isPlaying) {
+    animIcon.textContent = '⏸';
+    animPlayText.textContent = 'Detener';
+  } else {
+    animIcon.textContent = '▶';
+    animPlayText.textContent = (Number(animSlider.value) >= 99) ? 'Desplegar' : 'Plegar';
+  }
+}
+
+animSlider?.addEventListener('input', () => {
+  if (!viewer) return;
+  const val = Number(animSlider.value);
+  if (animValLabel) animValLabel.textContent = val + '%';
+  viewer.setAnimationProgress(val / 100);
+  syncAnimButton(false);
+});
+
+btnAnimPlay?.addEventListener('click', () => {
+  if (!viewer) return;
+  if (!viewer.isPlayingAnimation && Number(animSlider.value) >= 99) {
+    viewer.setAnimationProgress(0);
+  }
+  viewer.toggleAnimation();
+});
+
 document.getElementById('btn-change').addEventListener('click', () => {
   if (busy) return;
   viewer?.dispose();

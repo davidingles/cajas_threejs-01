@@ -69,6 +69,20 @@
       <button id="btn-flaps-reset" class="btn btn--small" type="button">Reiniciar solapas</button>
     </section>
 
+    
+    <!-- Control de animación y plegado -->
+    <section class="hud hud--animation" id="anim-panel" aria-label="Animación de plegado" hidden>
+      <div class="anim-bar">
+        <button id="btn-anim-play" class="btn anim-play-btn" type="button" aria-label="Reproducir o detener animación">
+          <span id="anim-icon" class="anim-icon" aria-hidden="true">▶</span>
+          <span id="anim-play-text">Plegar</span>
+        </button>
+        <span class="anim-label" id="anim-min-label">0%</span>
+        <input id="anim-slider" type="range" min="0" max="100" value="100" step="1" aria-label="Progreso del plegado" />
+        <span class="anim-label" id="anim-val-label">100%</span>
+      </div>
+    </section>
+
     <!-- Estado de carga -->
     <div class="overlay overlay--hidden" id="overlay">
       <div class="spinner" aria-hidden="true"></div>

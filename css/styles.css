@@ -516,3 +516,82 @@ html:not([data-visor-state="ready"]) #scene { visibility: hidden; }
 .client-card #client-status { margin-bottom: 0; min-height: 1em; font-size: .8rem; }
 html[data-visor-state="error"] #client-status { color: #ffb0a8; }
 @media (max-width: 420px) { .client-card { padding: 24px; } .client-gate { padding: 16px; } }
+
+/* Barra de control de animación en el canvas */
+.hud--animation {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: rgba(17, 23, 39, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.15));
+  border-radius: 999px;
+  padding: 8px 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  width: 440px;
+  pointer-events: auto;
+}
+
+.anim-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.anim-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--accent, #3b82f6);
+  border: none;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.anim-play-btn:hover {
+  background: var(--accent-dark, #2563eb);
+}
+
+.anim-icon {
+  font-size: 0.75rem;
+}
+
+.anim-bar input[type="range"] {
+  flex: 1;
+  cursor: pointer;
+  accent-color: #3b82f6;
+  height: 6px;
+  border-radius: 3px;
+  background: #1e293b;
+}
+
+.anim-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+  font-variant-numeric: tabular-nums;
+  min-width: 38px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .hud--animation {
+    bottom: 84px;
+    width: calc(100vw - 28px);
+    padding: 6px 12px;
+    gap: 8px;
+  }
+}

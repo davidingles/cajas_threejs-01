@@ -38,6 +38,11 @@ export class ModelViewer {
     this.timer = new THREE.Timer();
     if (typeof document !== 'undefined') this.timer.connect(document);
     this._loadToken = 0;
+    this.mixer = null;
+    this.animClips = [];
+    this.activeAction = null;
+    this.isPlayingAnimation = false;
+    this.onAnimationUpdate = null;
 
     this._initRenderer();
     this._initScene();
@@ -166,6 +171,75 @@ export class ModelViewer {
   _initScene() {
     this.scene = new THREE.Scene();
     this.scene.background = createGradientTexture(this.config.background);
+  }
+
+  _setupAnimations(scene, animations) {
+    if (this.mixer) {
+      this.mixer.stopAllAction();
+      this.mixer.uncacheRoot(this.mixer.getRoot());
+      this.mixer = null;
+    }
+    this.animClips = animations || [];
+    this.activeAction = null;
+    this.isPlayingAnimation = false;
+
+    if (!this.animClips.length) return;
+
+    this.mixer = new THREE.AnimationMixer(scene);
+    const clip = this.animClips.find(c => c.name.includes('Plegado') && !c.name.includes('Ciclo')) || this.animClips[0];
+    this.activeAction = this.mixer.clipAction(clip);
+    this.activeAction.setLoop(THREE.LoopOnce);
+    this.activeAction.clampWhenFinished = true;
+    this.activeAction.play();
+    this.activeAction.paused = true;
+    // Mostrar inicialmente la caja en posición plegada completa
+    this.activeAction.time = clip.duration;
+    this.mixer.update(0);
+  }
+
+  setAnimationProgress(progress) {
+    if (!this.activeAction || !this.mixer) return;
+    const clip = this.activeAction.getClip();
+    const p = THREE.MathUtils.clamp(progress, 0, 1);
+    this.activeAction.time = p * clip.duration;
+    this.activeAction.paused = true;
+    this.isPlayingAnimation = false;
+    this.mixer.update(0);
+    this.onAnimationUpdate?.(p, false);
+  }
+
+  toggleAnimation() {
+    if (!this.activeAction || !this.mixer) return;
+    const clip = this.activeAction.getClip();
+    if (this.isPlayingAnimation) {
+      this.pauseAnimation();
+    } else {
+      if (this.activeAction.time >= clip.duration - 0.05) {
+        this.activeAction.time = 0;
+      }
+      this.activeAction.paused = false;
+      this.isPlayingAnimation = true;
+      this.onAnimationUpdate?.(this.activeAction.time / clip.duration, true);
+    }
+  }
+
+  playAnimation() {
+    if (!this.activeAction) return;
+    const clip = this.activeAction.getClip();
+    if (this.activeAction.time >= clip.duration - 0.05) {
+      this.activeAction.time = 0;
+    }
+    this.activeAction.paused = false;
+    this.isPlayingAnimation = true;
+    this.onAnimationUpdate?.(this.activeAction.time / clip.duration, true);
+  }
+
+  pauseAnimation() {
+    if (!this.activeAction) return;
+    this.activeAction.paused = true;
+    this.isPlayingAnimation = false;
+    const clip = this.activeAction.getClip();
+    this.onAnimationUpdate?.(this.activeAction.time / clip.duration, false);
   }
 
   _initCamera() {
