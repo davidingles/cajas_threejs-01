@@ -45,7 +45,7 @@ async function getViewer() {
   let timer;
   try {
     const module = await Promise.race([
-      import('./viewer.js'),
+      import('./viewer.js?v=20261113-armadura-90'),
       new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Comprueba tu conexión e inténtalo de nuevo.')), 20000); })
     ]);
     viewer = new module.ModelViewer(canvas, CONFIG);
