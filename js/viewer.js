@@ -614,8 +614,10 @@ export class ModelViewer {
     const fitRadius = sphere.radius || radius;
 
     const fov = THREE.MathUtils.degToRad(this.camera.fov);
+    const horizontalFov = 2 * Math.atan(Math.tan(fov / 2) * this.camera.aspect);
+    const limitingFov = Math.min(fov, horizontalFov);
     const padding = this.config.camera?.fitPadding ?? 1.55;
-    const distance = (fitRadius / Math.sin(fov / 2)) * padding;
+    const distance = (fitRadius / Math.sin(limitingFov / 2)) * padding;
 
     this.controls.target.set(0, size.y / 2, 0);
 
