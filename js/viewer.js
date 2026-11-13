@@ -89,8 +89,9 @@ export class ModelViewer {
         return;
       }
       this._registerModel(gltf.scene);
+      this._setupAnimations(gltf.scene, gltf.animations);
       this._setContent(gltf.scene, name);
-      this.onStatus('ready', { label: this.contentLabel });
+      this.onStatus('ready', { label: this.contentLabel, hasAnimations: this.hasAnimations });
     } catch (error) {
       if (token !== this._loadToken) return;
       console.error('[visor] error al cargar el modelo', error);
@@ -711,6 +712,14 @@ export class ModelViewer {
       this.pivot.rotation.y += (this.config.rotation?.speed ?? 0.4) * delta;
     }
 
+    if (this.mixer && this.isPlayingAnimation) {
+      this.mixer.update(delta);
+      const action = this.activeAction;
+      const duration = action?.getClip().duration || 0;
+      const progress = duration ? Math.min(1, action.time / duration) : 0;
+      this.isPlayingAnimation = Boolean(action && !action.paused && progress < 1);
+      this.onAnimationUpdate?.(progress, this.isPlayingAnimation);
+    }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
